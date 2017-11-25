@@ -2,7 +2,7 @@
 
 Secure and reliable software update framework for Cocoa developers.
 
-<img src="Resources/Screenshot.png" width="732" alt="Sparkle shows familiar update window with release notes">
+<img src="Resources/Screenshot_v2.png" width="662" alt="Sparkle shows familiar update window with release notes">
 
 ## Features
 

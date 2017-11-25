@@ -71,6 +71,9 @@
     self.updateAlert = [[SUUpdateAlert alloc] initWithAppcastItem:self.updateItem host:self.host completionBlock:^(SUUpdateAlertChoice choice) {
         [self updateAlertFinishedWithChoice:choice];
     }];
+    
+    // In new unified window updateAlert work as status controller.
+    self.statusController = (id)self.updateAlert;
 
     id<SUVersionDisplay> versDisp = nil;
     if ([[updater delegate] respondsToSelector:@selector(versionDisplayerForUpdater:)]) {
@@ -309,8 +312,15 @@
 {
 	if (self.statusController)
 	{
-        [self.statusController close];
-        self.statusController = nil;
+        if([self.statusController respondsToSelector:@selector(userDidCancelDownload:)]){
+            // For new unified windows we don't want to close the update window,
+            // Just ask it to switch back to non-downloading mode.
+            [self.statusController performSelectorOnMainThread:@selector(userDidCancelDownload:) withObject:self waitUntilDone:YES];
+        }
+        else{
+            [self.statusController close];
+            self.statusController = nil;
+        }
     }
     [super abortUpdate];
 }

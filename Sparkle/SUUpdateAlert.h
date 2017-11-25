@@ -33,6 +33,26 @@ typedef NS_ENUM(NSInteger, SUUpdateAlertChoice) {
 - (IBAction)remindMeLater:sender;
 - (void)disableKeyboardShortcutForInstallButton;
 
+#pragma mark - StatusController
+
+@property (weak) IBOutlet NSView *downloadView;
+@property (weak) IBOutlet NSButton *actionButton;
+@property (weak) IBOutlet NSProgressIndicator *progressBar;
+@property (weak) IBOutlet NSTextField *statusTextField;
+
+@property (copy) NSString *statusText;
+@property double progressValue;
+@property (nonatomic) double maxProgressValue;
+@property (getter=isButtonEnabled) BOOL buttonEnabled;
+
+// Pass 0 for the max progress value to get an indeterminate progress bar.
+// Pass nil for the status text to not show it.
+- (void)beginActionWithTitle:(NSString *)title maxProgressValue:(double)maxProgressValue statusText:(NSString *)statusText;
+
+// If isDefault is YES, the button's key equivalent will be \r.
+- (void)setButtonTitle:(NSString *)buttonTitle target:(id)target action:(SEL)action isDefault:(BOOL)isDefault;
+
+
 @end
 
 #endif

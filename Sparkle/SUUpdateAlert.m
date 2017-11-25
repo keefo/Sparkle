@@ -39,6 +39,7 @@ static NSString *const SUUpdateAlertTouchBarIndentifier = @"" SPARKLE_BUNDLE_IDE
 
 @property (strong) SUAppcastItem *updateItem;
 @property (strong) SUHost *host;
+@property (strong) NSString *oldWindowTitle;
 @property (strong) void(^completionBlock)(SUUpdateAlertChoice);
 
 @property (strong) NSProgressIndicator *releaseNotesSpinner;
@@ -61,6 +62,7 @@ static NSString *const SUUpdateAlertTouchBarIndentifier = @"" SPARKLE_BUNDLE_IDE
 
 @synthesize updateItem;
 @synthesize host;
+@synthesize oldWindowTitle;
 
 @synthesize releaseNotesSpinner;
 @synthesize webViewFinishedLoading;
@@ -73,6 +75,16 @@ static NSString *const SUUpdateAlertTouchBarIndentifier = @"" SPARKLE_BUNDLE_IDE
 @synthesize skipButton;
 @synthesize laterButton;
 
+
+@synthesize downloadView;
+@synthesize progressValue;
+@synthesize maxProgressValue;
+@synthesize statusText;
+@synthesize actionButton;
+@synthesize progressBar;
+@synthesize statusTextField;
+
+
 - (instancetype)initWithAppcastItem:(SUAppcastItem *)item host:(SUHost *)aHost completionBlock:(void (^)(SUUpdateAlertChoice))block
 {
     self = [super initWithWindowNibName:@"SUUpdateAlert"];
@@ -81,6 +93,7 @@ static NSString *const SUUpdateAlertTouchBarIndentifier = @"" SPARKLE_BUNDLE_IDE
         self.completionBlock = block;
         host = aHost;
         updateItem = item;
+        oldWindowTitle = self.window.title;
         [self setShouldCascadeWindows:NO];
 
         // Alex: This dummy line makes sure that the binary is linked against WebKit.
@@ -99,11 +112,12 @@ static NSString *const SUUpdateAlertTouchBarIndentifier = @"" SPARKLE_BUNDLE_IDE
 
 - (void)endWithSelection:(SUUpdateAlertChoice)choice
 {
-    [self.releaseNotesView stopLoading:self];
-    [self.releaseNotesView setFrameLoadDelegate:nil];
-    [self.releaseNotesView setPolicyDelegate:nil];
-    [self.releaseNotesView removeFromSuperview]; // Otherwise it gets sent Esc presses (why?!) and gets very confused.
-    [self close];
+    // new unified windows don't close window
+    //[self.releaseNotesView stopLoading:self];
+    //[self.releaseNotesView setFrameLoadDelegate:nil];
+    //[self.releaseNotesView setPolicyDelegate:nil];
+    //[self.releaseNotesView removeFromSuperview]; // Otherwise it gets sent Esc presses (why?!) and gets very confused.
+    //[self close];
     self.completionBlock(choice);
     self.completionBlock = nil;
 }
@@ -344,6 +358,86 @@ static NSString *const SUUpdateAlertTouchBarIndentifier = @"" SPARKLE_BUNDLE_IDE
         return item;
     }
     return nil;
+}
+
+#pragma mark - StatusController
+
+- (void)userDidCancelDownload:(id __unused)sender
+{
+    [self.automaticallyInstallUpdatesButton setHidden:NO];
+    [self.installButton setHidden:NO];
+    [self.skipButton setHidden:NO];
+    [self.laterButton setHidden:NO];
+    [self.downloadView removeFromSuperview];
+    self.window.title = self.oldWindowTitle;
+}
+
+- (void)beginActionWithTitle:(NSString *)aTitle maxProgressValue:(double)aMaxProgressValue statusText:(NSString * __unused)aStatusText
+{
+    self.maxProgressValue = aMaxProgressValue;
+    self.statusText = aTitle;
+    
+    [self.automaticallyInstallUpdatesButton setHidden:YES];
+    [self.installButton setHidden:YES];
+    [self.skipButton setHidden:YES];
+    [self.laterButton setHidden:YES];
+    
+    if(self.downloadView.superview == nil){
+        // first call is starting download.
+        self.window.title = [NSString stringWithFormat:SULocalizedString(@"Updating %@", nil), [self.host name]];
+    }
+    [self.window.contentView addSubview:self.downloadView];
+    self.downloadView.frame = NSMakeRect(10, self.installButton.frame.origin.y-3, [self.window.contentView frame].size.width-20, self.downloadView.frame.size.height);
+}
+
+- (void)setButtonTitle:(NSString *)aButtonTitle target:(id)target action:(SEL)action isDefault:(BOOL)isDefault
+{
+    self.actionButton.title = aButtonTitle;
+    
+    [self window];
+    [self.actionButton sizeToFit];
+    // Except we're going to add 15 px for padding.
+    [self.actionButton setFrameSize:NSMakeSize([self.actionButton frame].size.width + 15, [self.actionButton frame].size.height)];
+    // Now we have to move it over so that it's always 15px from the side of the window.
+    [self.actionButton setFrameOrigin:NSMakePoint([[self window] frame].size.width - 15 - [self.actionButton frame].size.width, [self.actionButton frame].origin.y)];
+    // Redisplay superview to clean up artifacts
+    [[self.actionButton superview] display];
+    
+    [self.actionButton setTarget:target];
+    [self.actionButton setAction:action];
+    [self.actionButton setKeyEquivalent:isDefault ? @"\r" : @""];
+    
+    //self.touchBarButton.target = self.actionButton.target;
+    //self.touchBarButton.action = self.actionButton.action;
+    //self.touchBarButton.keyEquivalent = self.actionButton.keyEquivalent;
+    
+    // 06/05/2008 Alex: Avoid a crash when cancelling during the extraction
+    [self setButtonEnabled:(target != nil)];
+}
+
+- (BOOL)progressBarShouldAnimate
+{
+    return YES;
+}
+
+- (void)setButtonEnabled:(BOOL)enabled
+{
+    [self.actionButton setEnabled:enabled];
+}
+
+- (BOOL)isButtonEnabled
+{
+    return [self.actionButton isEnabled];
+}
+
+- (void)setMaxProgressValue:(double)value
+{
+    if (value < 0.0) value = 0.0;
+    maxProgressValue = value;
+    [self setProgressValue:0.0];
+    [self.progressBar setIndeterminate:(value == 0.0)];
+    [self.progressBar startAnimation:self];
+    [self.progressBar setUsesThreadedAnimation:YES];
 }
 
 @end
